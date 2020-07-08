@@ -92,8 +92,20 @@ void printProgress(double percentage) {
 
 
 struct Viewer : public owl::viewer::OWLViewer {
+  Viewer(OWLRenderer &renderer)
+    : owl::viewer::OWLViewer("owlThRend"),
+      renderer(renderer)
+  {}
+  
   void render() override;
+  
+  OWLRenderer &renderer;
 };
+
+void Viewer::render()
+{
+  PING;
+}
 
 void generateThermography(float*tsky, std::vector<int> &matIDs, settings &s, material *matProps){
 #if 0
@@ -384,8 +396,6 @@ int main()
   // TODO: clean up - move loading code to separate file, using only
   // single model, not individual vectors
   loadUCD(model,"../" + s.sceneFile);
-  PING;
-  OWLRenderer renderer(model);
 
   PING;
   loadColormapFromFile(("../" + s.colormapFile));
@@ -399,8 +409,31 @@ int main()
   material* matProps = loadMaterials("../materials");
   //printMaterials(matProps);
 
-  generateThermography(tsky, model.matIDs, s,matProps);
-  int i;
-  cin >> i;
+  // generateThermography(tsky, model.matIDs, s,matProps);
+  // int i;
+  // cin >> i;
+
+  PING;
+  OWLRenderer renderer(model);
+  Viewer viewer(renderer);
+
+  viewer.enableInspectMode(/* valid range of poi*/owl::box3f(),//sceneBounds,
+                           /* min distance      */1e-3f,
+                           /* max distance      */1e8f);
+  viewer.enableFlyMode();
+  viewer.setWorldScale(owl::length(model.getBounds().size()));
+
+  owl::vec3f from = (const owl::vec3f&)s.cameraCenter;
+  owl::vec3f dir  = (const owl::vec3f&)s.cameraDirection;
+  owl::vec3f up   = (const owl::vec3f&)s.cameraUp;
+  float fovy = 60.f;
+  
+  viewer.setCameraOrientation(/*origin   */from,
+                              /*lookat   */from+dir,
+                              /*up-vector*/up,
+                              /*fovy(deg)*/fovy);
+  
+  viewer.showAndRun();
+  
   return 0;
 }
