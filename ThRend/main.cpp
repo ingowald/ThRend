@@ -98,13 +98,20 @@ struct Viewer : public owl::viewer::OWLViewer {
   {}
   
   void render() override;
+  void resize(const owl::vec2i &newSize) override;
   
   OWLRenderer &renderer;
 };
 
+void Viewer::resize(const owl::vec2i &newSize)
+{
+  owl::viewer::OWLViewer::resize(newSize);
+  renderer.resize(newSize,fbPointer);
+}
+
 void Viewer::render()
 {
-  PING;
+  renderer.render();
 }
 
 void generateThermography(float*tsky, std::vector<int> &matIDs, settings &s, material *matProps){
