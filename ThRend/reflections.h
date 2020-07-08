@@ -16,6 +16,14 @@ using namespace glm;
 
 int NRAYS_GLOSSY;
 int MAX_BOUNCES;
+
+typedef struct{
+	float val;
+	unsigned int gID;
+	unsigned int pID;
+} Result;
+
+
 inline float power4(float t){ return t*t*t*t; }
 
 Result followSpecularPath(float* tsky,
@@ -107,7 +115,7 @@ Result followSpecularPath(float* tsky,
   r.val = flux;
   return r;
 #else
-  return 0;
+  return {};
 #endif
 }
 
@@ -162,7 +170,7 @@ Result followSpecularPath2(float* tsky,
   r.val = power4(t);;
   return r;
 #else
-  return 0;
+  return {};
 #endif
 }
 

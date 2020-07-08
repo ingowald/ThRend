@@ -1,6 +1,6 @@
 #define _USE_MATH_DEFINES
 #define GLM_ENABLE_EXPERIMENTAL
-#define TASKING_TBB
+// #define TASKING_TBB
 
 typedef unsigned int GLuint;
 
@@ -16,7 +16,6 @@ typedef unsigned int GLuint;
 
 #include <thread>
 #include <mutex>
-#include <iostream>
 #include <map>
 
 #include "UCDimporter.h"
@@ -29,9 +28,7 @@ typedef unsigned int GLuint;
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <sstream>
 #include <stdexcept>
-#include <fstream>
 #include <limits>
 #include <string>
 #include <numeric>      // std::iota
@@ -45,7 +42,8 @@ typedef unsigned int GLuint;
 
 #include <fstream>
 #include <iostream>
-
+#include "Model.h"
+#include "OWLRenderer.h"
 #include "samples/common/owlViewer/OWLViewer.h"
 
 const float STE_BOLZ = 5.670367e-08;
@@ -91,7 +89,6 @@ void printProgress(double percentage) {
   std::cout << "] " << round(percentage*100) <<"% \r";
   if (percentage > 0.95) std::cout << "\n";
 }
-
 
 
 struct Viewer : public owl::viewer::OWLViewer {
@@ -374,29 +371,35 @@ float* loadSkyTemp(string file){
   return tsky;
 }
 
-int main(){
-  std::vector<glm::vec3> sc_vertices;
-  std::vector<int> sc_triangles;
-  std::vector<int> sc_quads;
-  std::vector<int> matIDs;
-  std::vector<float> temps;
-  settings s = loadSettings("..\\viewSettings");
+int main()
+{
+  // std::vector<glm::vec3> sc_vertices;
+  // std::vector<int> sc_triangles;
+  // std::vector<int> sc_quads;
+  // std::vector<int> matIDs;
+  // std::vector<float> temps;
+  settings s = loadSettings("../viewSettings");
 
-  load_UCD(("..\\" + s.sceneFile), sc_vertices, sc_triangles, sc_quads, matIDs, temps);
-  buildSceneEmbree(sc_vertices, sc_triangles, sc_quads, matIDs, temps);
+  Model model;
+  // TODO: clean up - move loading code to separate file, using only
+  // single model, not individual vectors
+  loadUCD(model,"../" + s.sceneFile);
+  PING;
+  OWLRenderer renderer(model);
 
-  loadColormapFromFile(("..\\" + s.colormapFile));
-  float* tsky = loadSkyTemp(("..\\" + s.skyTempsFile));
+  PING;
+  loadColormapFromFile(("../" + s.colormapFile));
+  float* tsky = loadSkyTemp(("../" + s.skyTempsFile));
   tmin = s.tmin; tmax = s.tmax;
   tmin_reflected = s.tmin_reflected; tmax_reflected = s.tmax_reflected;
 
   NRAYS_GLOSSY = s.reflSamples;
   MAX_BOUNCES = s.MAX_BOUNCES;
 
-  material* matProps = loadMaterials("..\\materials");
+  material* matProps = loadMaterials("../materials");
   //printMaterials(matProps);
 
-  generateThermography(tsky, matIDs, s,matProps);
+  generateThermography(tsky, model.matIDs, s,matProps);
   int i;
   cin >> i;
   return 0;
