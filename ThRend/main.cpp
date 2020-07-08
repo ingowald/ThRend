@@ -99,6 +99,30 @@ struct Viewer : public owl::viewer::OWLViewer {
   
   void render() override;
   void resize(const owl::vec2i &newSize) override;
+  void cameraChanged() override
+  {
+    auto &camera = getCamera();
+    const owl::vec3f lookFrom = camera.getFrom();
+    const owl::vec3f lookAt = camera.getAt();
+    const owl::vec3f lookUp = camera.getUp();
+    const float cosFovy = camera.getCosFovy();
+    // ----------- compute variable values  ------------------
+    owl::vec3f camera_pos = lookFrom;
+    owl::vec3f camera_d00
+      = normalize(lookAt-lookFrom);
+    float aspect = fbSize.x / float(fbSize.y);
+    owl::vec3f camera_ddu
+      = cosFovy * aspect * owl::normalize(owl::cross(camera_d00,lookUp));
+    owl::vec3f camera_ddv
+      = cosFovy * normalize(cross(camera_ddu,camera_d00));
+    camera_d00 -= 0.5f * camera_ddu;
+    camera_d00 -= 0.5f * camera_ddv;
+  
+    renderer.setCamera(camera_pos,
+                       camera_d00,
+                       camera_ddu,
+                       camera_ddv);
+  }
   
   OWLRenderer &renderer;
 };

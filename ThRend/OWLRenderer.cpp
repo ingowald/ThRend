@@ -5,9 +5,7 @@ extern "C" char deviceCode[];
 
 OWLRenderer::OWLRenderer(const Model &model)
 {
-  PING;
   context = owlContextCreate(nullptr,1);
-  PING;
   module = owlModuleCreate(context,deviceCode);
 
   createRayGen();
@@ -35,9 +33,13 @@ void OWLRenderer::createDeviceGlobals()
 {
   OWLVarDecl vars[]
     = {
-       { "fb.rgba8", OWL_RAW_POINTER, OWL_OFFSETOF(DeviceGlobals,fb.rgba8) },
-       { "fb.size",  OWL_INT2, OWL_OFFSETOF(DeviceGlobals,fb.size) },
-       { "world",    OWL_GROUP, OWL_OFFSETOF(DeviceGlobals,world) },
+       { "fb.pointer", OWL_RAW_POINTER, OWL_OFFSETOF(DeviceGlobals,fb.pointer) },
+       { "fb.size",    OWL_INT2, OWL_OFFSETOF(DeviceGlobals,fb.size) },
+       { "world",      OWL_GROUP, OWL_OFFSETOF(DeviceGlobals,world) },
+       { "camera.origin",    OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.origin) },
+       { "camera.screen_00", OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.screen_00) },
+       { "camera.screen_du", OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.screen_du) },
+       { "camera.screen_dv", OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.screen_dv) },
        { /*sentinel*/nullptr }
   };
   globals = owlParamsCreate(context,sizeof(DeviceGlobals),vars,-1);
@@ -54,8 +56,11 @@ void OWLRenderer::createWorld(const Model &model)
 
   owlBuildPrograms(context);
   owlBuildPipeline(context);
+  
   world = owlInstanceGroupCreate(context,1,
                                  &meshGroup);
+  owlGroupBuildAccel(world);
+  
   owlBuildSBT(context);
 }
 
@@ -63,7 +68,6 @@ void OWLRenderer::createWorld(const Model &model)
 
 OWLGeom OWLRenderer::createTrianglesGeom(const Model &model)
 {
-  PING;
   OWLVarDecl vars[]
     = {
        { "triangles", OWL_BUFPTR, OWL_OFFSETOF(TrianglesGeom,triangles) },
@@ -133,6 +137,16 @@ OWLGeom OWLRenderer::createQuadsGeom(const Model &model)
   return geom;
 }
 
+void OWLRenderer::setCamera(const owl::vec3f &lens_center,
+                            const owl::vec3f &screen_00,
+                            const owl::vec3f &screen_du,
+                            const owl::vec3f &screen_dv)
+{
+  owlParamsSet3f(globals,"camera.origin",   (const owl3f&)lens_center);
+  owlParamsSet3f(globals,"camera.screen_00",(const owl3f&)screen_00);
+  owlParamsSet3f(globals,"camera.screen_du",(const owl3f&)screen_du);
+  owlParamsSet3f(globals,"camera.screen_dv",(const owl3f&)screen_dv);
+}
 
 void OWLRenderer::render()
 {
@@ -146,5 +160,5 @@ void OWLRenderer::resize(const owl::vec2i &fbSize,
 {
   this->fbSize = fbSize;
   owlParamsSet2i(globals,"fb.size",fbSize.x,fbSize.y);
-  owlParamsSetPointer(globals,"fb.rgba8",fbPointer);
+  owlParamsSetPointer(globals,"fb.pointer",fbPointer);
 }
