@@ -8,6 +8,8 @@ OWLRenderer::OWLRenderer(const Model &model)
   context = owlContextCreate(nullptr,1);
   module = owlModuleCreate(context,deviceCode);
 
+  accumBuffer = owlDeviceBufferCreate(context,OWL_FLOAT4,1,nullptr);
+  
   createRayGen();
   createMissProg();
   createDeviceGlobals();
@@ -35,14 +37,20 @@ void OWLRenderer::createDeviceGlobals()
     = {
        { "fb.pointer", OWL_RAW_POINTER, OWL_OFFSETOF(DeviceGlobals,fb.pointer) },
        { "fb.size",    OWL_INT2, OWL_OFFSETOF(DeviceGlobals,fb.size) },
+       { "accumBuffer",OWL_BUFPTR, OWL_OFFSETOF(DeviceGlobals,accumBuffer) },
+       { "accumID",    OWL_INT, OWL_OFFSETOF(DeviceGlobals,accumID) },
        { "world",      OWL_GROUP, OWL_OFFSETOF(DeviceGlobals,world) },
        { "camera.origin",    OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.origin) },
        { "camera.screen_00", OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.screen_00) },
        { "camera.screen_du", OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.screen_du) },
        { "camera.screen_dv", OWL_FLOAT3, OWL_OFFSETOF(DeviceGlobals,camera.screen_dv) },
+       { "multiGPU.deviceCount", OWL_INT, OWL_OFFSETOF(DeviceGlobals,multiGPU.deviceCount) },
+       { "multiGPU.deviceIndex", OWL_DEVICE, OWL_OFFSETOF(DeviceGlobals,multiGPU.deviceIndex) },
        { /*sentinel*/nullptr }
   };
   globals = owlParamsCreate(context,sizeof(DeviceGlobals),vars,-1);
+  owlParamsSet1i(globals,"multiGPU.deviceCount",owlGetDeviceCount(context));
+
 }
 
 void OWLRenderer::createWorld(const Model &model)
@@ -142,6 +150,7 @@ void OWLRenderer::setCamera(const owl::vec3f &lens_center,
                             const owl::vec3f &screen_du,
                             const owl::vec3f &screen_dv)
 {
+  this->accumID = 0;
   owlParamsSet3f(globals,"camera.origin",   (const owl3f&)lens_center);
   owlParamsSet3f(globals,"camera.screen_00",(const owl3f&)screen_00);
   owlParamsSet3f(globals,"camera.screen_du",(const owl3f&)screen_du);
@@ -150,15 +159,21 @@ void OWLRenderer::setCamera(const owl::vec3f &lens_center,
 
 void OWLRenderer::render()
 {
+  owlParamsSet1i(globals,"accumID",accumID);
   owlParamsSetGroup(globals,"world",world);
   owlLaunch2D(rayGen,fbSize.x,fbSize.y,globals);
+  
   owlLaunchSync(globals);
+  accumID++;
 }
 
 void OWLRenderer::resize(const owl::vec2i &fbSize,
                          uint32_t *fbPointer)
 {
   this->fbSize = fbSize;
+  this->accumID = 0;
+  owlBufferResize(accumBuffer,fbSize.x*fbSize.y);
+  owlParamsSetBuffer(globals,"accumBuffer",accumBuffer);
   owlParamsSet2i(globals,"fb.size",fbSize.x,fbSize.y);
   owlParamsSetPointer(globals,"fb.pointer",fbPointer);
 }

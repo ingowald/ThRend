@@ -64,13 +64,31 @@ vec3f missColor()
   return c;
 }
 
+inline __device__
+void writeAccumulate(const vec3f &pixelColor)
+{
+  auto &lp = optixLaunchParams;
+  const vec2i pixel  = owl::getLaunchIndex();
+  const int fbIndex  = pixel.x + lp.fb.size.x*pixel.y;
+  float4 *accumBufferValue = ((float4 *)lp.accumBuffer) + fbIndex;
+  const int accumID = lp.accumID;
+  vec4f pixel4f = vec4f(pixelColor,1.f);
+  if (accumID > 0)
+    pixel4f += vec4f(*accumBufferValue);
+  
+  *accumBufferValue = pixel4f;
+  lp.fb.pointer[fbIndex] = make_rgba(pixel4f / pixel4f.w);
+}
+
 OPTIX_RAYGEN_PROGRAM(deviceMain)()
 {
+  auto &lp = optixLaunchParams;
+  
   vec2i pixel = owl::getLaunchIndex();
-
+  if ((pixel.y % lp.multiGPU.deviceCount) != lp.multiGPU.deviceIndex) return;
+  
   vec2f screenCoords = (vec2f(pixel)+vec2f(.5f)) / vec2f(owl::getLaunchDims());
   
-  auto &lp = optixLaunchParams;
   Ray ray = lp.camera.generateRay(screenCoords);
   
   IntersectionResult isec;
@@ -81,8 +99,8 @@ OPTIX_RAYGEN_PROGRAM(deviceMain)()
     = (isec.primID < 0)
     ? missColor()//vec3f(0.f)
     : (.3f+.7f*abs(dot(isec.Ng,ray.direction)))*owl::randomColor(isec.primID);
-  const int fbIndex = pixel.x + lp.fb.size.x*pixel.y;
-  lp.fb.pointer[fbIndex] = owl::make_rgba(vec4f(color,1.f));
+
+  writeAccumulate(color);
 }
 
 

@@ -32,9 +32,19 @@ struct DeviceGlobals {
     owl::vec2i size;
     uint32_t  *pointer;
   } fb;
+  owl::vec4f *accumBuffer;
+  struct {
+    int deviceIndex;
+    int deviceCount;
+  } multiGPU;
+  
   Camera camera;
   OptixTraversableHandle world;
-  // int accumID;
+
+  /*! accumulatoin buffering ID - will be 0 in the first frame after
+      camera motion stops, then 1 in the next frame, then 2, tec; once
+      camera, scnee, frame size etc hcange this res-tarts at 0 */
+  int accumID;
 };
 
 struct OWLRenderer {
@@ -56,16 +66,17 @@ private:
   void createMissProg();
   void createDeviceGlobals();
 
-  int accum { 0 };
+  int accumID { 0 };
   owl::vec2i fbSize;
   
-  OWLContext context { 0 };
+  OWLContext  context { 0 };
   /*! the ptx module that contains all out device programs */
-  OWLModule  module  { 0 };
-  OWLParams  globals { 0 };
-  OWLRayGen  rayGen  { 0 };
-  OWLGroup   world   { 0 };
+  OWLModule   module  { 0 };
+  OWLParams   globals { 0 };
+  OWLRayGen   rayGen  { 0 };
+  OWLGroup    world   { 0 };
   OWLMissProg missProg { 0 };
+  OWLBuffer   accumBuffer { 0 };
 };
 
 
